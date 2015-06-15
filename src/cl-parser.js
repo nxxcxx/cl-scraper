@@ -2,7 +2,6 @@
 
 var cheerio = require( 'cheerio' );
 var util = require( 'util' );
-var chalk = require( 'chalk' );
 
 
 function parse( body ) {
@@ -11,75 +10,88 @@ function parse( body ) {
 	var $ = cheerio.load( body );
 
 	var res = $( 'table[width="717"] tbody tr' ).eq( 1 ).children( 'td' ).eq( 1 ).children( 'table' ).eq( 1 ).children( 'tbody' ).children();
-	var len = res.length;
-	res = res.slice( 2, len - 1 );
+	res = res.slice( 2, res.length - 1 );
 
-	if ( res.length === 0 ) { return {}; } // course not found exit return not found
+	if ( res.length === 0 ) return {}; // course not found return empty obj
 
+	// for each <td> in <tr>
 	res.each( ( idx1, elem1 ) => {
 
 		var partialCourseList = [];
 		$( elem1 ).children().slice(1).each( ( idx2, elem2 ) => {
 
 			var cnt = $( elem2 ).text();
-			// process.stdout.write( `${cnt} ` );
 			partialCourseList.push( cnt );
 
 		} );
-		// console.log();
 		rawCL.push( partialCourseList );
 
 	} );
 
-	clean( rawCL );
-	var restructuredCL = restructure( rawCL );
-	// console.log( util.inspect( restructuredCL, false, null ) );
+	cleanTable( rawCL );
+	var restructuredTable = restructureTable( rawCL );
+	var header = parseHeader( $ );
+	restructuredTable.header = header;
+
+	// console.log( util.inspect( restructuredTable, false, null ) );
 	// console.log( '-----------------------------------------' );
 
-	return restructuredCL;
+	return restructuredTable;
+
+}
+
+function parseHeader( $ ) {
+
+	var res = $( 'body script' ).text();
+
+	// get anyting in double quotes
+	var matches = res.match( /"([^"]*)"/g ).map( v => v.replace( /"/g, '' ) );
+
+	res = {};
+	// ES6 Array destructuring assignment without declaration
+	[ res.id, res.name, res.credit, res.p0, res.p1, res.p2, res.p3 ] = matches;
+
+	return res;
 
 }
 
 
-function clean( list ) {
+function cleanTable( list ) {
 
 	list.forEach(  ( value ) => {
 
-		//Time: remove white scpace
+		//Time remove white scpace
 		value[ 3 ] = value[ 3 ].replace( /\s/g, '' );
 		//Instructor
-		value[ 9 ] = value[ 9 ].replace( /- -/g, 'N/A' );
-		//Campus
+		value[ 9 ] = value[ 9 ].replace( /- -/g, '-' );
+		//Remark
 		value[ 10 ] = value[ 10 ].replace( /\*/g, '' ).trim();
 
 	} );
 
 }
 
-function restructure( list ) {
+function restructureTable( list ) {
 
 	var res = {};
-	var scheduleIdx = 0;
 
 	list.forEach(  ( value ) => {
 
 		var sec = value[ 0 ];
 
 		if ( !res[ sec ] ) {
-			res[ sec ] = {};
-			res[ sec ][ 'schedule' ] = {};
-			scheduleIdx = 0;
+			res[ sec ] = { schedule: {} };
 		}
 
+		var scheduleIdx = Object.keys( res[ sec ][ 'schedule' ] ).length;
 		res[ sec ][ 'schedule' ][ scheduleIdx ] = {
 
 			day: value[ 2 ],
 			time: value[ 3 ],
 			room: value[ 4 ],
-			instructor: value[ 9 ]
+			inst: value[ 9 ]
 
 		};
-		scheduleIdx ++;
 
 		if ( !res[ sec ][ 'info' ] ) {
 			res[ sec ][ 'info' ] = {
@@ -87,7 +99,7 @@ function restructure( list ) {
 				ava: value[ 1 ],
 				mid: { Date: value[ 5 ], Time: value[ 6 ] },
 				fin: { Date: value[ 7 ], Time: value[ 8 ] },
-				remark: value[ 10 ]
+				rmk: value[ 10 ]
 
 			};
 		}

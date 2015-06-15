@@ -1,51 +1,58 @@
 'use strict';
 
-var chalk = require( 'chalk' );
 var request = require( 'request' );
 // require( 'request-debug' )( request );
 
 var cl_cookie_uri = 'http://classlookup.au.edu/clu_ug/index.jsp';
 var cl_cookie_jar = request.jar();
 var cl_requiest_uri = 'http://classlookup.au.edu/clu_ug/result.jsp';
-var cl_form = { courseid: 'bg2001', txtyear: '2014', txtsem: '3' };
 
-var factory = {};
+var cl = {};
 
-factory.getCookie = ( done ) => {
+cl.getCookie = ( done ) => {
 
-	request( { uri: cl_cookie_uri, jar: cl_cookie_jar }, ( err, res, body ) => {
+	request( {
 
-		if ( err ) console.log( chalk.red( err ) );
-		done();
+		uri: cl_cookie_uri,
+		jar: cl_cookie_jar
+
+	}, ( err, res, body ) => {
+
+		handleRes( err, res, body, done );
 
 	} );
 }
 
-factory.getCourse = ( done ) => {
+cl.getCourse = ( done, id, year, sem ) => {
 
 	var req_options = {
 
 		method: 'POST',
-		url: cl_requiest_uri,
+		uri: cl_requiest_uri,
 		jar: cl_cookie_jar,
-		form: cl_form
+		form: {
+			courseid: id,
+			txtyear: year,
+			txtsem: sem
+		}
 
 	};
 
 	request( req_options, ( err, res, body ) => {
 
-		if ( !err && res.statusCode == 200 ) {
-
-			done( body );
-
-		} else {
-
-			console.log( chalk.red( res.statusCode, err ) );
-
-		}
+		handleRes( err, res, body, done );
 
 	} );
 
 }
 
-module.exports = factory;
+function handleRes( err, res, body, done ) {
+
+	if ( !res ) done.fail( 500, 'WTF' );
+	else if ( !err && res.statusCode === 200 ) done( body );
+	else if ( res.statusCode === 302 ) done.fail( res.statusCode, 'check cookie');
+	else done.fail( res.statusCode, err );
+
+}
+
+module.exports = cl;

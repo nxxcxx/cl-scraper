@@ -24,12 +24,12 @@ gulp.task( 'serve', [ 'build' ], function () {
 	nodemon( { script: './build/cl-scraper.js', ignore: '.' } )
 	.on( 'start', function () {
 
-		console.log( 'nodemon started' );
+		console.log( 'nodemon starting...' );
 
 	} )
 	.on( 'restart', function () {
 
-		console.log( 'nodemon restarted' );
+		console.log( 'nodemon restarting...' );
 
 	} );
 
